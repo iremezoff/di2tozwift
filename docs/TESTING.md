@@ -119,7 +119,7 @@ For each test, send pass/fail, the numbers you saw, and `ride.log` (or the lines
 
 ## Already verified (no rider needed)
 
-- 80 unit tests, among them the gear table (T1), the physics, the DirCon protocol and the shifting logic with a simulated trainer.
+- 79 unit tests, among them the gear table (T1), the physics, the DirCon protocol and the shifting logic with a simulated trainer.
 - mDNS: `dns-sd` and an independent client (wftnp with zeroconf) find `DirCon Proxy …` at port 36866 with all TXT keys and the A record; SIGTERM sends goodbye records.
 - Real T600: discovery hides the Magene service; with shifting, Request Control → `80 00 01`, SIM 5 % in gear 19 → 4.40 % sent → `80 11 01`, a shift to gear 18 → 4.12 % → `80 11 01`; the T600's "simulation parameters changed" status messages are kept from Zwift; in pass-through, ERG 150 W → `80 05 01` from the trainer.
 - Keyboard shifting and terminal restore after Ctrl-C.
