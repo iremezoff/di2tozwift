@@ -15,6 +15,8 @@ struct RunCommand: ParsableCommand {
     @Option(help: "Config file.") var config = ProxyConfig.defaultURL.path
     @Flag(help: "Use the built-in simulated trainer instead of Bluetooth.") var simulate = false
     @Flag(name: .customLong("no-shifting"), help: "Pure pass-through: no virtual gears.") var noShifting = false
+    @Flag(help: "Shift with the Di2 levers (D-FLY Ch.1/2 easier, Ch.3/4 harder).") var di2 = false
+    @Option(name: .customLong("di2-name"), help: "Advertised name of the Di2 rear derailleur.") var di2Name: String?
 
     func run() throws {
         Out.debug = logLevel == "debug"
@@ -29,6 +31,8 @@ struct RunCommand: ParsableCommand {
             cfg.mdns = m
         }
         if noShifting { cfg.shifting.enabled = false }
+        if di2 { cfg.di2.enabled = true }
+        if let di2Name { cfg.di2.name = di2Name }
 
         if cfg.trainer == nil, !simulate {
             cfg.trainer = pickTrainer()
@@ -79,6 +83,7 @@ final class ProxyApp {
     private let core: ProxyCore
     private let shifting: VirtualShifting?
     private let keyboard: KeyboardShiftInput
+    private var di2: Di2ShiftInput?
     private var server: DirConServer?
     private var advertiser: MDNSResponder?
     private var records: ServiceRecords?
@@ -141,6 +146,15 @@ final class ProxyApp {
                     Out.status("shift with ] or ↑ (harder) and [ or ↓ (easier) in this window")
                 } else {
                     Out.status("keyboard shifting off: stdin is not a terminal")
+                }
+                if config.di2.enabled {
+                    let d = Di2ShiftInput(name: config.di2.name, queue: queue, scheduler: scheduler,
+                                          repeatInterval: Double(config.shifting.repeatIntervalMS) / 1000,
+                                          status: Out.status, log: { Out.log("di2: " + $0) })
+                    d.onShift = { vs.shift($0) }
+                    d.start()
+                    di2 = d
+                    Out.status("looking for the Di2 (press a shifter to wake it)...")
                 }
             }
             Out.status(trainer is SimulatedTrainer ? "starting simulated trainer" : "looking for the trainer...")
@@ -242,6 +256,7 @@ final class ProxyApp {
         stopping = true
         Out.status("stopping...")
         keyboard.stop()
+        di2?.stop()
         advertiser?.stop()
         server?.stop()
         trainer.stop()

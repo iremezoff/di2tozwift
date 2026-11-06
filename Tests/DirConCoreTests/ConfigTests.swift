@@ -49,4 +49,12 @@ struct ConfigTests {
             try JSONDecoder().decode(ProxyConfig.self, from: Data(#"{"mdns":"carrier-pigeon"}"#.utf8))
         }
     }
+
+    @Test func di2ConfigDefaultsOffAndDecodes() throws {
+        #expect(ProxyConfig().di2 == Di2Config())
+        #expect(!ProxyConfig().di2.enabled)
+        let c = try JSONDecoder().decode(ProxyConfig.self, from: Data(#"{"di2":{"enabled":true,"name":"ireme   29C"}}"#.utf8))
+        #expect(c.di2.enabled)
+        #expect(c.di2.name == "ireme   29C")
+    }
 }

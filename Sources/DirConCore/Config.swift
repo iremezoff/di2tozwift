@@ -19,6 +19,21 @@ public struct InterceptorConfig: Codable, Equatable {
     }
 }
 
+/// Di2 D-FLY shift input. Off by default.
+public struct Di2Config: Codable, Equatable {
+    public var enabled = false
+    /// Advertised name of the rear derailleur; nil = the first Di2 found.
+    public var name: String?
+
+    public init() {}
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        name = try c.decodeIfPresent(String.self, forKey: .name)
+    }
+}
+
 /// `~/.config/dirconproxy/config.json`. Missing keys take defaults; flags override the file.
 public struct ProxyConfig: Codable, Equatable {
     public var trainer: String?
@@ -30,6 +45,7 @@ public struct ProxyConfig: Codable, Equatable {
     public var notificationSeq = NotificationSeq.zero
     public var interceptors = InterceptorConfig()
     public var shifting = ShiftingConfig()
+    public var di2 = Di2Config()
 
     public init() {}
 
@@ -37,7 +53,7 @@ public struct ProxyConfig: Codable, Equatable {
         case trainer, name, port, mdns, txt
         case serialNumber = "serial_number"
         case notificationSeq = "notification_seq"
-        case interceptors, shifting
+        case interceptors, shifting, di2
     }
 
     public init(from decoder: Decoder) throws {
@@ -52,6 +68,7 @@ public struct ProxyConfig: Codable, Equatable {
         notificationSeq = try c.decodeIfPresent(NotificationSeq.self, forKey: .notificationSeq) ?? d.notificationSeq
         interceptors = try c.decodeIfPresent(InterceptorConfig.self, forKey: .interceptors) ?? d.interceptors
         shifting = try c.decodeIfPresent(ShiftingConfig.self, forKey: .shifting) ?? d.shifting
+        di2 = try c.decodeIfPresent(Di2Config.self, forKey: .di2) ?? d.di2
     }
 
     public static var defaultURL: URL {
