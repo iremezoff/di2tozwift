@@ -4,6 +4,7 @@
   .venv/bin/python scripts/dircon_check.py                 # discover, request control, SIM 5 %, watch data
   .venv/bin/python scripts/dircon_check.py --erg 150       # also send ERG 150 W
   .venv/bin/python scripts/dircon_check.py --listen 30     # watch data for 30 s
+  .venv/bin/python scripts/dircon_check.py --grade 0 --crr 0.008 --cw 0.25 --listen 30
 """
 import argparse
 import asyncio
@@ -42,6 +43,8 @@ async def main() -> None:
     ap.add_argument("--name", default="DirCon Proxy", help="instance name prefix to pick")
     ap.add_argument("--host", help="skip discovery and connect here")
     ap.add_argument("--grade", type=float, default=5.0, help="SIM grade in %%")
+    ap.add_argument("--crr", type=float, default=0.004, help="SIM rolling resistance")
+    ap.add_argument("--cw", type=float, default=0.51, help="SIM wind resistance coefficient (kg/m)")
     ap.add_argument("--erg", type=int, help="also send Set Target Power (W)")
     ap.add_argument("--listen", type=float, default=3.0, help="seconds to print data")
     a = ap.parse_args()
@@ -73,7 +76,7 @@ async def main() -> None:
         print("→ Request Control 00")
         await client.write_characteristic(CP, b"\x00")
         await asyncio.sleep(0.5)
-        grade = struct.pack("<hhBB", 0, round(a.grade * 100), 40, 51)
+        grade = struct.pack("<hhBB", 0, round(a.grade * 100), round(a.crr * 10000), round(a.cw * 100))
         print(f"→ SIM grade {a.grade} %: 11 {grade.hex(' ')}")
         await client.write_characteristic(CP, b"\x11" + grade)
         await asyncio.sleep(0.5)

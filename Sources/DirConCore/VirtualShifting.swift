@@ -67,6 +67,7 @@ public final class VirtualShifting: Interceptor {
             return
         }
         gearIndex = next
+        log("shift \(d == .up ? "up" : "down") → gear \(gear.number)")
         status(ladder.statusLine(gear))
         guard mode == .sim else { return }
         if strategy == .circumference { needGear = true } else { needRoad = true }
