@@ -158,6 +158,23 @@ public struct IndoorBikeData: Equatable {
     }
 }
 
+extension IndoorBikeData {
+    /// Byte offset of the Instantaneous Power field, nil when absent or cut off.
+    public static func powerOffset(_ data: Data) -> Int? {
+        guard data.count >= 2 else { return nil }
+        let flags = Data(data).u16(0)
+        guard flags & 0x0040 != 0 else { return nil }
+        var o = 2
+        if flags & 0x0001 == 0 { o += 2 }
+        if flags & 0x0002 != 0 { o += 2 }
+        if flags & 0x0004 != 0 { o += 2 }
+        if flags & 0x0008 != 0 { o += 2 }
+        if flags & 0x0010 != 0 { o += 3 }
+        if flags & 0x0020 != 0 { o += 2 }
+        return o + 2 <= data.count ? o : nil
+    }
+}
+
 public enum FeatureBits {
     /// Target Setting features (second uint32).
     public static func targetSettings(_ v: Data) -> UInt32 {
