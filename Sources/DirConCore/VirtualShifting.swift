@@ -1,5 +1,12 @@
 import Foundation
 
+/// What a shift request did, for feedback such as a sound.
+public enum ShiftResult: Equatable {
+    case shifted(ShiftDirection, gear: Int)
+    /// Already in the hardest (up) or easiest (down) gear; nothing changed.
+    case limit(ShiftDirection)
+}
+
 public enum Strategy: Equatable {
     case undecided, circumference, transform
 }
@@ -15,6 +22,7 @@ public final class VirtualShifting: Interceptor {
     public private(set) var strategy: Strategy = .undecided
     public private(set) var baseCircumferenceMM: Double
     public var gear: Gear { ladder.gears[gearIndex] }
+    public var onShiftResult: ((ShiftResult) -> Void)?
 
     private enum Mode { case none, sim, erg }
 
@@ -64,9 +72,11 @@ public final class VirtualShifting: Interceptor {
         let next = gearIndex + (d == .up ? 1 : -1)
         guard ladder.gears.indices.contains(next) else {
             log("gear limit: \(ladder.statusLine(gear))")
+            onShiftResult?(.limit(d))
             return
         }
         gearIndex = next
+        onShiftResult?(.shifted(d, gear: gear.number))
         log("shift \(d == .up ? "up" : "down") → gear \(gear.number)")
         status(ladder.statusLine(gear))
         guard mode == .sim else { return }

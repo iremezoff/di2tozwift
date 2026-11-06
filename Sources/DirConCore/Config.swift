@@ -19,6 +19,25 @@ public struct InterceptorConfig: Codable, Equatable {
     }
 }
 
+/// Sounds played on shifts: macOS system sound names from /System/Library/Sounds.
+public struct SoundConfig: Codable, Equatable {
+    public var enabled = true
+    public var up = "Tink"
+    public var down = "Pop"
+    public var limit = "Basso"
+
+    public init() {}
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = SoundConfig()
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? d.enabled
+        up = try c.decodeIfPresent(String.self, forKey: .up) ?? d.up
+        down = try c.decodeIfPresent(String.self, forKey: .down) ?? d.down
+        limit = try c.decodeIfPresent(String.self, forKey: .limit) ?? d.limit
+    }
+}
+
 /// Di2 D-FLY shift input. Off by default.
 public struct Di2Config: Codable, Equatable {
     public var enabled = false
@@ -46,6 +65,7 @@ public struct ProxyConfig: Codable, Equatable {
     public var interceptors = InterceptorConfig()
     public var shifting = ShiftingConfig()
     public var di2 = Di2Config()
+    public var sound = SoundConfig()
 
     public init() {}
 
@@ -53,7 +73,7 @@ public struct ProxyConfig: Codable, Equatable {
         case trainer, name, port, mdns, txt
         case serialNumber = "serial_number"
         case notificationSeq = "notification_seq"
-        case interceptors, shifting, di2
+        case interceptors, shifting, di2, sound
     }
 
     public init(from decoder: Decoder) throws {
@@ -69,6 +89,7 @@ public struct ProxyConfig: Codable, Equatable {
         interceptors = try c.decodeIfPresent(InterceptorConfig.self, forKey: .interceptors) ?? d.interceptors
         shifting = try c.decodeIfPresent(ShiftingConfig.self, forKey: .shifting) ?? d.shifting
         di2 = try c.decodeIfPresent(Di2Config.self, forKey: .di2) ?? d.di2
+        sound = try c.decodeIfPresent(SoundConfig.self, forKey: .sound) ?? d.sound
     }
 
     public static var defaultURL: URL {

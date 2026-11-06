@@ -16,6 +16,7 @@ struct RunCommand: ParsableCommand {
     @Flag(help: "Use the built-in simulated trainer instead of Bluetooth.") var simulate = false
     @Flag(name: .customLong("no-shifting"), help: "Pure pass-through: no virtual gears.") var noShifting = false
     @Flag(help: "Shift with the Di2 levers (D-FLY Ch.1/2 easier, Ch.3/4 harder).") var di2 = false
+    @Flag(name: .customLong("no-sound"), help: "No sound on shifts.") var noSound = false
     @Option(name: .customLong("di2-name"), help: "Advertised name of the Di2 rear derailleur.") var di2Name: String?
 
     func run() throws {
@@ -32,6 +33,7 @@ struct RunCommand: ParsableCommand {
         }
         if noShifting { cfg.shifting.enabled = false }
         if di2 { cfg.di2.enabled = true }
+        if noSound { cfg.sound.enabled = false }
         if let di2Name { cfg.di2.name = di2Name }
 
         if cfg.trainer == nil, !simulate {
@@ -84,6 +86,7 @@ final class ProxyApp {
     private let shifting: VirtualShifting?
     private let keyboard: KeyboardShiftInput
     private var di2: Di2ShiftInput?
+    private var sound: ShiftSound?
     private var server: DirConServer?
     private var advertiser: MDNSResponder?
     private var records: ServiceRecords?
@@ -120,6 +123,11 @@ final class ProxyApp {
             let vs = VirtualShifting(config: config.shifting, status: Out.status, log: { Out.log("shifting: " + $0) })
             interceptors.append(vs)
             shifting = vs
+            if config.sound.enabled {
+                let s = ShiftSound(config.sound, log: Out.status)
+                vs.onShiftResult = { s.play($0) }
+                sound = s
+            }
         } else {
             shifting = nil
         }
