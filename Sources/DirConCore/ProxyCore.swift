@@ -192,6 +192,7 @@ public final class ProxyCore: TrainerLinkDelegate, ProxyControl {
             deferring = true
             let verdict = pipeline.clientWrite(FTMSUUID.controlPointID, value, from: c)
             deferring = false
+            if op == 0x05 || op == 0x11, !verdict.isForward { lastControl = nil }
             switch verdict {
             case .forward(let d):
                 if queuedControl[op] == nil { queuedOrder.append(op) }
@@ -211,6 +212,9 @@ public final class ProxyCore: TrainerLinkDelegate, ProxyControl {
         deferring = true
         let verdict = pipeline.clientWrite(id, value, from: c)
         deferring = false
+        if id == FTMSUUID.controlPointID, let op = value.first, op == 0x05 || op == 0x11, !verdict.isForward {
+            lastControl = nil  // an interceptor owns the control state now; never replay an older command
+        }
         switch verdict {
         case .drop: reply(.success)
         case .reply(let code): reply(code)
@@ -253,6 +257,7 @@ public final class ProxyCore: TrainerLinkDelegate, ProxyControl {
             if everReady { restoreAfterReconnect() }
             everReady = true
         case .offline:
+            lastControl = nil
             for c in Array(clients.keys) {
                 clientDisconnected(c)
                 onCloseClient?(c)
@@ -262,6 +267,7 @@ public final class ProxyCore: TrainerLinkDelegate, ProxyControl {
         default:
             break
         }
+        if s != .ready { swallow = [:] }  // results of unanswered replays will never come
         for i in pipeline.interceptors { i.trainerStateChanged(s) }
         onTrainerStateChange?(s)
     }
@@ -285,7 +291,13 @@ public final class ProxyCore: TrainerLinkDelegate, ProxyControl {
         for item in plan {
             if !item.fromClient, let op = item.value.first { swallow[op, default: 0] += 1 }
             trainer.write(FTMSUUID.controlPointID, item.value) { [weak self] r in
-                if case .success = r, let op = item.value.first, op == 0x05 || op == 0x11 { self?.lastControl = item.value }
+                guard let self, let op = item.value.first else { return }
+                switch r {
+                case .success:
+                    if op == 0x05 || op == 0x11 { self.lastControl = item.value }
+                case .failure:
+                    if !item.fromClient, let n = self.swallow[op], n > 0 { self.swallow[op] = n == 1 ? nil : n - 1 }
+                }
             }
         }
     }

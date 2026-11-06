@@ -38,8 +38,16 @@ public final class MDNSResponder: Advertiser {
         self.log = log
     }
 
+    /// Re-join and announce when IPv4 appears or changes; after a drop the kernel forgets the group membership.
+    static func shouldReannounce(previous: [UInt8]?, current: [UInt8]?) -> Bool {
+        current != nil && current != previous
+    }
+
+    private var lastPathIPv4: [UInt8]?
+
     public func start(_ records: ServiceRecords) throws {
         self.records = records
+        lastPathIPv4 = records.ipv4
         try openSocket(records.ipv4)
         announce(times: 3)
         let m = NWPathMonitor()
@@ -161,11 +169,13 @@ public final class MDNSResponder: Advertiser {
     }
 
     private func pathChanged() {
-        guard records != nil, let fresh = recordsForNewAddress?() else { return }
-        if fresh.ipv4 != records?.ipv4 {
-            log("IPv4 address changed to \(fresh.ipv4.map(String.init).joined(separator: ".")); re-announcing")
-            update(fresh)
-        }
+        guard records != nil else { return }
+        let fresh = recordsForNewAddress?()
+        defer { lastPathIPv4 = fresh?.ipv4 }
+        guard let fresh, Self.shouldReannounce(previous: lastPathIPv4, current: fresh.ipv4) else { return }
+        log("IPv4 \(fresh.ipv4.map(String.init).joined(separator: ".")) is back or changed; re-joining and re-announcing")
+        joinGroup(fresh.ipv4)
+        update(fresh)
     }
 }
 

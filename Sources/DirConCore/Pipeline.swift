@@ -34,6 +34,11 @@ public enum Verdict {
     case forward(Data)        // send on, possibly modified
     case drop                 // swallow silently (a write still gets DirCon success)
     case reply(ResponseCode)  // answer the client; the trainer is not touched (writes only)
+
+    var isForward: Bool {
+        if case .forward = self { return true }
+        return false
+    }
 }
 
 /// Handed to each interceptor when it is registered.

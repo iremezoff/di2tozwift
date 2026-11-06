@@ -84,6 +84,8 @@ public final class BLETrainerLink: NSObject, TrainerLink, CBCentralManagerDelega
     private var everReady = false
     private var hintTimer: Cancellable?
     private var offlineTimer: Cancellable?
+    private var setupTimer: Cancellable?
+    public static let setupTimeout = 10.0
     private var activity: NSObjectProtocol?
 
     private enum OpKind { case read, write(Data) }
@@ -122,9 +124,9 @@ public final class BLETrainerLink: NSObject, TrainerLink, CBCentralManagerDelega
         offlineTimer?.cancel()
         central?.stopScan()
         if let p = peripheral { central?.cancelPeripheralConnection(p) }
-        failAll(.offline)
         endActivity()
         setState(.offline)
+        failAll(.offline)
     }
 
     public func read(_ id: CharacteristicID, completion: @escaping (Result<Data, TrainerError>) -> Void) {
@@ -203,6 +205,12 @@ public final class BLETrainerLink: NSObject, TrainerLink, CBCentralManagerDelega
         chars = [:]
         controlPointIndicating = false
         p.discoverServices(nil)
+        setupTimer?.cancel()
+        setupTimer = scheduler.after(Self.setupTimeout) { [weak self] in
+            guard let self, self.state != .ready, p.state == .connected else { return }
+            self.log("setup did not finish in \(Int(Self.setupTimeout)) s; reconnecting")
+            self.central?.cancelPeripheralConnection(p)
+        }
     }
 
     public func centralManager(_ c: CBCentralManager, didFailToConnect p: CBPeripheral, error: Error?) {
@@ -211,10 +219,11 @@ public final class BLETrainerLink: NSObject, TrainerLink, CBCentralManagerDelega
     }
 
     public func centralManager(_ c: CBCentralManager, didDisconnectPeripheral p: CBPeripheral, error: Error?) {
-        failAll(.offline)
-        guard !stopping else { return }
+        setupTimer?.cancel()
+        guard !stopping else { return failAll(.offline) }
         log("disconnected: \(error?.localizedDescription ?? "no error")")
-        setState(.reconnecting)
+        setState(.reconnecting)  // first, so completions below don't start new writes on a dead link
+        failAll(.offline)
         status("trainer link lost: reconnecting (spin the trainer if it sleeps)")
         c.connect(p, options: nil)  // never times out; waits for the trainer
         offlineTimer?.cancel()
@@ -231,7 +240,11 @@ public final class BLETrainerLink: NSObject, TrainerLink, CBCentralManagerDelega
     public func peripheral(_ p: CBPeripheral, didDiscoverServices error: Error?) {
         let list = p.services ?? []
         pendingCharDiscovery = list.count
-        if list.isEmpty { log("no services: \(error?.localizedDescription ?? "")") }
+        if error != nil || list.isEmpty {
+            log("service discovery failed: \(error?.localizedDescription ?? "no services"); reconnecting")
+            central?.cancelPeripheralConnection(p)
+            return
+        }
         for s in list { p.discoverCharacteristics(nil, for: s) }
     }
 
@@ -284,6 +297,7 @@ public final class BLETrainerLink: NSObject, TrainerLink, CBCentralManagerDelega
         guard state != .ready, pendingCharDiscovery == 0, pendingSetupReads.isEmpty, controlPointIndicating else { return }
         hintTimer?.cancel()
         offlineTimer?.cancel()
+        setupTimer?.cancel()
         everReady = true
         beginActivity()
         setState(.ready)
@@ -336,7 +350,7 @@ public final class BLETrainerLink: NSObject, TrainerLink, CBCentralManagerDelega
 
     private func runHead() {
         guard let op = ops.first else { return }
-        guard let p = peripheral, let c = chars[op.id], state == .ready else {
+        guard let p = peripheral, p.state == .connected, let c = chars[op.id], state == .ready else {
             return finishHead { $0.readDone?(.failure(.offline)); $0.writeDone?(.failure(.offline)) }
         }
         switch op.kind {

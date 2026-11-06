@@ -184,7 +184,11 @@ final class ProxyApp {
     }
 
     private func goOnline() {
-        guard let r = makeRecords() else { Out.fail("no active IPv4 address; Zwift needs the Mac on a network", .network) }
+        guard let r = makeRecords() else {
+            if server == nil { Out.fail("no active IPv4 address; Zwift needs the Mac on a network", .network) }
+            Out.status("no IPv4 address right now; will re-announce when the network is back")
+            return
+        }
         records = r
         if server == nil {
             let s = DirConServer(core: core, port: config.port, queue: queue,

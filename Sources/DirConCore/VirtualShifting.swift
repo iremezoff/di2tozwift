@@ -229,6 +229,11 @@ public final class VirtualShifting: Interceptor {
     }
 
     private func finish() {
+        if inFlight?.op == 0x12, strategy == .undecided {
+            strategy = .transform
+            log("no answer to wheel circumference: strategy: parameter transform")
+            needRoad = mode == .sim
+        }
         inFlight?.timer?.cancel()
         inFlight = nil
         suppressTimer = control?.scheduler.after(Self.statusWindow) { [weak self] in self?.suppressStatus = false }
