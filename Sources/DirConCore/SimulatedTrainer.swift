@@ -9,6 +9,8 @@ public final class SimulatedTrainer: TrainerLink {
     public let identifier = "00000000-0000-0000-0000-00000000517A"
     public var services: [GattService] { T600Profile.services }
 
+    /// Fitness Machine Feature value; defaults to the T600's.
+    public var feature: Data = T600Profile.feature
     public var cadenceRpm: Double
     public var massKg: Double
     /// Result code for each Control Point write; nil = never indicate (to test timeouts).
@@ -32,7 +34,9 @@ public final class SimulatedTrainer: TrainerLink {
         self.massKg = massKg
     }
 
-    public func cachedValue(_ id: CharacteristicID) -> Data? { T600Profile.staticValues[id] }
+    public func cachedValue(_ id: CharacteristicID) -> Data? {
+        id == FTMSUUID.featureID ? feature : T600Profile.staticValues[id]
+    }
 
     public func start() {
         setState(.connecting)
