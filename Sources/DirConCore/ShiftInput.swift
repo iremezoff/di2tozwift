@@ -9,7 +9,8 @@ public enum ShiftDirection {
 
 /// A source of shift events (keyboard now, Di2 D-FLY later). Callbacks arrive on the core queue.
 public protocol ShiftInput: AnyObject {
-    var onShift: ((ShiftDirection) -> Void)? { get set }
+    /// Returns false when the shift changed nothing (already at that end of the ladder).
+    var onShift: ((ShiftDirection) -> Bool)? { get set }
     func start()
     func stop()
 }

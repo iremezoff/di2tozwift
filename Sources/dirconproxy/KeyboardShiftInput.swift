@@ -4,7 +4,7 @@ import Foundation
 /// Terminal keys shift: `]` or Up = harder, `[` or Down = easier. Active only on an interactive terminal.
 /// Raw mode is always undone: on stop(), at exit and from the signal handlers.
 final class KeyboardShiftInput: ShiftInput {
-    var onShift: ((ShiftDirection) -> Void)?
+    var onShift: ((ShiftDirection) -> Bool)?
     private let queue: DispatchQueue
     private var source: DispatchSourceRead?
     private var escape: [UInt8] = []
@@ -39,8 +39,8 @@ final class KeyboardShiftInput: ShiftInput {
         if !escape.isEmpty || b == 0x1B {
             escape.append(b)
             if escape.count == 3 {
-                if escape == [0x1B, 0x5B, 0x41] { onShift?(.up) }    // Up arrow
-                if escape == [0x1B, 0x5B, 0x42] { onShift?(.down) }  // Down arrow
+                if escape == [0x1B, 0x5B, 0x41] { _ = onShift?(.up) }    // Up arrow
+                if escape == [0x1B, 0x5B, 0x42] { _ = onShift?(.down) }  // Down arrow
                 escape = []
             } else if escape.count == 2, escape[1] != 0x5B {
                 escape = []
@@ -48,8 +48,8 @@ final class KeyboardShiftInput: ShiftInput {
             return
         }
         switch b {
-        case UInt8(ascii: "]"): onShift?(.up)
-        case UInt8(ascii: "["): onShift?(.down)
+        case UInt8(ascii: "]"): _ = onShift?(.up)
+        case UInt8(ascii: "["): _ = onShift?(.down)
         default: break
         }
     }

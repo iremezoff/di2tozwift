@@ -9,7 +9,7 @@ public final class Di2ShiftInput: NSObject, ShiftInput, CBCentralManagerDelegate
     public static let channels = CBUUID(string: "00002AC2-5348-494D-414E-4F5F424C4500")
     public static let notFoundHintAfter = 15.0
 
-    public var onShift: ((ShiftDirection) -> Void)? {
+    public var onShift: ((ShiftDirection) -> Bool)? {
         get { mapper.onShift }
         set { mapper.onShift = newValue }
     }

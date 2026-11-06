@@ -18,12 +18,15 @@ public enum Di2Event: Equatable {
 /// (right lever) shift up (harder). Short = one shift, double = two, long = one shift then repeats
 /// every `repeatInterval` until release. Call on the core queue.
 public final class Di2ShiftMapper {
-    public var onShift: ((ShiftDirection) -> Void)?
+    /// Returns false when the shift changed nothing; a hold then stops repeating.
+    public var onShift: ((ShiftDirection) -> Bool)?
 
     private let scheduler: Scheduler
     private let repeatInterval: Double
     private var last: [UInt8]?
     private var repeating: [Int: Cancellable] = [:]
+    /// Channels in a long hold, whether or not they are still repeating.
+    private var holding: Set<Int> = []
 
     public init(scheduler: Scheduler, repeatInterval: Double) {
         self.scheduler = scheduler
@@ -42,6 +45,7 @@ public final class Di2ShiftMapper {
     public func reset() {
         for (_, c) in repeating { c.cancel() }
         repeating = [:]
+        holding = []
         last = nil
     }
 
@@ -59,16 +63,20 @@ public final class Di2ShiftMapper {
             guard let dir = Self.direction(channel: ch) else { continue }
             switch Di2Event(new) {
             case .short:
-                onShift?(dir)
+                _ = shift(dir)
             case .double:
-                onShift?(dir)
-                onShift?(dir)
+                if shift(dir) { _ = shift(dir) }
             case .longStart:
-                onShift?(dir)
-                startRepeat(ch, dir)
+                holding.insert(ch)
+                if shift(dir) { startRepeat(ch, dir) }
             case .longHeld:
-                if repeating[ch] == nil { startRepeat(ch, dir) }
+                // The derailleur re-sends this about once a second; only a hold whose start was missed begins here.
+                if !holding.contains(ch) {
+                    holding.insert(ch)
+                    if shift(dir) { startRepeat(ch, dir) }
+                }
             case .released, .idle:
+                holding.remove(ch)
                 repeating.removeValue(forKey: ch)?.cancel()
             }
         }
@@ -78,8 +86,13 @@ public final class Di2ShiftMapper {
         repeating[ch]?.cancel()
         repeating[ch] = scheduler.after(repeatInterval) { [weak self] in
             guard let self, self.repeating[ch] != nil else { return }
-            self.onShift?(dir)
-            self.startRepeat(ch, dir)
+            if self.shift(dir) {
+                self.startRepeat(ch, dir)
+            } else {
+                self.repeating[ch] = nil  // at the end of the ladder: stop until released
+            }
         }
     }
+
+    private func shift(_ d: ShiftDirection) -> Bool { onShift?(d) ?? false }
 }

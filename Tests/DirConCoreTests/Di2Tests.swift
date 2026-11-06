@@ -11,7 +11,7 @@ private final class Rig {
     var shifts: [ShiftDirection] = []
     init() {
         mapper = Di2ShiftMapper(scheduler: sched, repeatInterval: 0.15)
-        mapper.onShift = { [unowned self] in self.shifts.append($0) }
+        mapper.onShift = { [unowned self] in self.shifts.append($0); return true }
         mapper.receive(pkt(0x20, [0xF0, 0xF0, 0xF0, 0xF0]))  // baseline
     }
 }
@@ -85,5 +85,26 @@ struct Di2Tests {
         r.mapper.receive(Data([0x21]))
         r.mapper.receive(Data())
         #expect(r.shifts.isEmpty)
+    }
+
+    /// A hold that reaches the hardest or easiest gear stops repeating, even when the derailleur
+    /// keeps re-sending "still held" (0x3_ with a moving counter) about once a second.
+    @Test func longHoldStopsAtGearLimit() {
+        let sched = TestScheduler()
+        let mapper = Di2ShiftMapper(scheduler: sched, repeatInterval: 0.15)
+        var attempts = 0
+        mapper.onShift = { _ in attempts += 1; return attempts <= 3 }  // only 3 gears left
+        mapper.receive(pkt(0x20, [0xF0, 0xF0, 0xF0, 0xF0]))
+        mapper.receive(pkt(0x21, [0xF0, 0xF0, 0xF0, 0x28]))  // long press start
+        sched.advance(by: 1.0)
+        #expect(attempts == 4)                               // 3 shifts + the one refused at the limit
+        mapper.receive(pkt(0x22, [0xF0, 0xF0, 0xF0, 0x39]))  // still held (counter moved)
+        sched.advance(by: 1.0)
+        mapper.receive(pkt(0x23, [0xF0, 0xF0, 0xF0, 0x3A]))
+        sched.advance(by: 1.0)
+        #expect(attempts == 4)
+        mapper.receive(pkt(0x24, [0xF0, 0xF0, 0xF0, 0x0B]))  // released
+        mapper.receive(pkt(0x25, [0xF0, 0xF0, 0xF0, 0x1C]))  // next short press works again
+        #expect(attempts == 5)
     }
 }

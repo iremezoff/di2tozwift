@@ -68,20 +68,23 @@ public final class VirtualShifting: Interceptor {
 
     // MARK: Shifting
 
-    public func shift(_ d: ShiftDirection) {
+    /// false when already in the hardest (up) or easiest (down) gear.
+    @discardableResult
+    public func shift(_ d: ShiftDirection) -> Bool {
         let next = gearIndex + (d == .up ? 1 : -1)
         guard ladder.gears.indices.contains(next) else {
             log("gear limit: \(ladder.statusLine(gear))")
             onShiftResult?(.limit(d))
-            return
+            return false
         }
         gearIndex = next
         onShiftResult?(.shifted(d, gear: gear.number))
         log("shift \(d == .up ? "up" : "down") → gear \(gear.number)")
         status(ladder.statusLine(gear))
-        guard mode == .sim else { return }
+        guard mode == .sim else { return true }
         if strategy == .circumference { needGear = true } else { needRoad = true }
         pump()
+        return true
     }
 
     // MARK: Interceptor
