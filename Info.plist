@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.iremezoff.dirconproxy</string>
+	<key>CFBundleName</key>
+	<string>dirconproxy</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Connects to your smart trainer.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Lets Zwift on this Mac find your trainer over the local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_wahoo-fitness-tnp._tcp</string>
+	</array>
+</dict>
+</plist>
