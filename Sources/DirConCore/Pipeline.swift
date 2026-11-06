@@ -22,6 +22,7 @@ public final class DispatchScheduler: Scheduler {
         func cancel() { work.cancel() }
     }
 
+    @discardableResult
     public func after(_ seconds: Double, _ work: @escaping () -> Void) -> Cancellable {
         let item = DispatchWorkItem(block: work)
         queue.asyncAfter(deadline: .now() + seconds, execute: item)
